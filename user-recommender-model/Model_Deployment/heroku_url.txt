@@ -1,0 +1,13 @@
+For GUI web app testing
+For web app, Go to your browser and enter this url and test the recommender systems
+url for the web app: https://lucidrecommendation.herokuapp.com/
+
+
+For direct API calls, the following are the api urls
+api url for popular users recommendation: https://lucidrecommendation.herokuapp.com/new_user_recommend_api
+api url for similar user's recommendation: https://lucidrecommendation.herokuapp.com/similar_user_recommend_api
+api url for Article recommendation: https://lucidrecommendation.herokuapp.com/article_recommend_api
+
+How to call the api,{"name": "name_of_the_user"}
+
+For direct api calls, postman can be used for testing before production
