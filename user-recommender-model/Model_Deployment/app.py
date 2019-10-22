@@ -74,35 +74,35 @@ def post_recommend(index, cosine_sim=COS_SIMILARITY):
         print("")
 
 # Initialize the app
-APP = Flask(__name__)
+app = Flask(__name__)
 
 '''HTML GUI User Recommendation'''
 
 # Render the home page
-@APP.route('/')
+@app.route('/')
 def home():
     '''Display of web app homepage'''
     return render_template('index.html')
 
 # render the new_user_recommend page
-@APP.route('/new_user_recommend')
+@app.route('/new_user_recommend')
 def new_user_recommend():
     '''Display of new user recommendation page'''
     return render_template('new_user_recommend_form.html')
 
 # render the similar_user_recommend page
-@APP.route('/similar_user_recommend')
+@app.route('/similar_user_recommend')
 def similar_user_recommend():
     '''Display of similar user recommendation page'''
     return render_template('similar_user_recommend_form.html')
 
-@APP.route('/article_user_recommend')
+@app.route('/article_user_recommend')
 def article_user_recommend():
     '''Display of similar user recommendation page'''
     return render_template('article_recommend_form.html')
 
 # render the new user recommend page
-@APP.route('/recommend', methods=['POST'])
+@app.route('/recommend', methods=['POST'])
 def new_user_recommender():
     '''Function that accepts the features and predicts
     a response(user recommendation) and displays it
@@ -120,11 +120,11 @@ def new_user_recommender():
         for i_d in popular_users['user_id']:
             recommended_users.append(USERS.iloc[i_d, 0])
         return render_template('recommend.html', prediction_text=recommended_users)
-    except KeyError:
+    except:
         return render_template('recommend.html', prediction_text=["User does not exist"])
 
 # render the recommended results
-@APP.route('/similar_recommend', methods=['POST'])
+@app.route('/similar_recommend', methods=['POST'])
 def similar_user_recommender():
     '''Function that accepts the features and predicts
     a response(user recommendation) and displays it
@@ -137,12 +137,12 @@ def similar_user_recommender():
         # recommend
         similar_users = recommend(int(USERS_SIM[USERS_SIM.name == name_of_user]['user_id']))
         return render_template('similar_recommend.html', prediction_text=similar_users)
-    except KeyError:
+    except:
         text = ["User does not exist/Has no bio"]
         return render_template('similar_recommend.html', prediction_text=text)
 
 # render the recommended results
-@APP.route('/post_recommend', methods=['POST'])
+@app.route('/post_recommend', methods=['POST'])
 def article_user_recommender():
     '''Function that accepts the features and predicts
     a response(user recommendation) and displays it
@@ -160,7 +160,7 @@ def article_user_recommender():
     except IndexError:
         return render_template('article_recommend.html', prediction_text=["User does not exist"])
 
-@APP.route("/similar_user_recommend_api", methods=['POST'])
+@app.route("/similar_user_recommend_api", methods=['POST'])
 def similar_user_recommend_api():
     '''Function that handles direct api calls
     from another client to recommend similar users'''
@@ -174,10 +174,10 @@ def similar_user_recommend_api():
             "recommended_users": [x for x in recommended_users]
         }
         return jsonify(recommended_users)
-    except RuntimeError:
+    except:
         print("http error")
 
-@APP.route("/new_user_recommend_api", methods=['POST'])
+@app.route("/new_user_recommend_api", methods=['POST'])
 def new_user_recommend_api():
     '''Function that handles direct api calls
     from another client to recommend Most Popular users'''
@@ -195,10 +195,10 @@ def new_user_recommend_api():
             "recommended_users": [x for x in recommended_users]
         }
         return jsonify(recommended_users)
-    except RuntimeError:
+    except:
         print("Server error")
 
-@APP.route("/article_recommend_api", methods=['POST'])
+@app.route("/article_recommend_api", methods=['POST'])
 def article_user_recommend_api():
     '''Function that handles direct api calls
     from another client to recommend articles'''
@@ -214,4 +214,4 @@ def article_user_recommend_api():
 
 # run the app
 if __name__ == "__main__":
-    APP.run(debug=True)
+    app.run(debug=True)
