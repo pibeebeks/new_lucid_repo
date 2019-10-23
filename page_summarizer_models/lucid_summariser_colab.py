@@ -32,6 +32,7 @@ import numpy as np
 import tensorflow as tf
 import re
 import nltk
+import joblib
 
 from nltk.corpus import stopwords
 import time
@@ -734,3 +735,17 @@ print('\nSummary')
 print('  Word Ids:       {}'.format([i for i in answer_logits if i != pad]))
 print('  Response Words: {}'.format(" ".join([int_to_vocab[i] for i in answer_logits if i != pad])))
 
+def save_model(model):
+    '''
+    Function to save recommended output to a file
+
+    Parameters
+    recommender
+    (file):a file of the article summarizer model
+
+    Returns
+    (): The list of file names in which the data is stored
+    '''
+    filename = 'model.sav'
+    joblib.dump(model, filename)
+    print('Model successfully saved in model.sav')
