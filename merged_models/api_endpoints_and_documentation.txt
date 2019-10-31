@@ -1,0 +1,22 @@
+For GUI web app testing
+For web app, Go to your browser and enter this url and test the recommender systems
+url for the web app: https://lucid-ml.ml/
+
+
+For direct API calls, the following are the api urls
+api url for popular users recommendation: https://lucid-ml.ml/new_user_recommend_api
+api url for similar user's recommendation: https://lucid-ml.ml/similar_user_recommend_api
+api url for Article recommendation: https://lucid-ml.ml/article_recommend_api
+api url endpoint for url page summarizations: https://lucid-ml.ml/summarized_url_api
+api url endpoint for article summarizations: https://lucid-ml.ml/summarized_article_api
+
+For direct api calls, postman can be used for testing before production
+
+
+Documentation for the apis to be integrated to the lucid blog
+
+https://documenter.getpostman.com/view/9109659/SVzxZLTK
+
+https://documenter.getpostman.com/view/9109659/SVzxZLTL
+
+https://documenter.getpostman.com/view/9109659/SVzxZLTM
