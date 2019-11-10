@@ -1,116 +1,114 @@
-
 # coding: utf-8
 
 # In[1]:
 
-
+import re
+import time
 import pandas as pd
 import numpy as np
-import tensorflow as tf
-import re
 from nltk.corpus import stopwords
-import time
+import tensorflow as tf
 from tensorflow.python.layers.core import Dense
 from tensorflow.python.ops.rnn_cell_impl import _zero_state_tensors
+
 print('TensorFlow Version: {}'.format(tf.__version__))
 
+# !pip install tensorflow==1.1
 
 
-!pip install tensorflow==1.1
+REVIEWS = pd.read_csv("Reviews.csv")
 
+REVIEWS = REVIEWS.dropna()
+REVIEWS = REVIEWS.drop(['Id', 'ProductId', 'UserId', 'ProfileName',
+                        'HelpfulnessNumerator', 'HelpfulnessDenominator',
+                        'Score', 'Time'], 1)
+REVIEWS = REVIEWS.reset_index(drop=True)
 
-reviews = pd.read_csv("Reviews.csv")
-
-
-reviews = reviews.dropna()
-reviews = reviews.drop(['Id','ProductId','UserId','ProfileName','HelpfulnessNumerator','HelpfulnessDenominator',
-                        'Score','Time'], 1)
-reviews = reviews.reset_index(drop=True)
-
-
-contractions = { 
-"ain't": "am not",
-"aren't": "are not",
-"can't": "cannot",
-"can't've": "cannot have",
-"'cause": "because",
-"could've": "could have",
-"couldn't": "could not",
-"couldn't've": "could not have",
-"didn't": "did not",
-"doesn't": "does not",
-"don't": "do not",
-"hadn't": "had not",
-"hadn't've": "had not have",
-"hasn't": "has not",
-"haven't": "have not",
-"he'd": "he would",
-"he'd've": "he would have",
-"he'll": "he will",
-"he's": "he is",
-"how'd": "how did",
-"how'll": "how will",
-"how's": "how is",
-"i'd": "i would",
-"i'll": "i will",
-"i'm": "i am",
-"i've": "i have",
-"isn't": "is not",
-"it'd": "it would",
-"it'll": "it will",
-"it's": "it is",
-"let's": "let us",
-"ma'am": "madam",
-"mayn't": "may not",
-"might've": "might have",
-"mightn't": "might not",
-"must've": "must have",
-"mustn't": "must not",
-"needn't": "need not",
-"oughtn't": "ought not",
-"shan't": "shall not",
-"sha'n't": "shall not",
-"she'd": "she would",
-"she'll": "she will",
-"she's": "she is",
-"should've": "should have",
-"shouldn't": "should not",
-"that'd": "that would",
-"that's": "that is",
-"there'd": "there had",
-"there's": "there is",
-"they'd": "they would",
-"they'll": "they will",
-"they're": "they are",
-"they've": "they have",
-"wasn't": "was not",
-"we'd": "we would",
-"we'll": "we will",
-"we're": "we are",
-"we've": "we have",
-"weren't": "were not",
-"what'll": "what will",
-"what're": "what are",
-"what's": "what is",
-"what've": "what have",
-"where'd": "where did",
-"where's": "where is",
-"who'll": "who will",
-"who's": "who is",
-"won't": "will not",
-"wouldn't": "would not",
-"you'd": "you would",
-"you'll": "you will",
-"you're": "you are"
+contractions = {
+    "ain't": "am not",
+    "aren't": "are not",
+    "can't": "cannot",
+    "can't've": "cannot have",
+    "'cause": "because",
+    "could've": "could have",
+    "couldn't": "could not",
+    "couldn't've": "could not have",
+    "didn't": "did not",
+    "doesn't": "does not",
+    "don't": "do not",
+    "hadn't": "had not",
+    "hadn't've": "had not have",
+    "hasn't": "has not",
+    "haven't": "have not",
+    "he'd": "he would",
+    "he'd've": "he would have",
+    "he'll": "he will",
+    "he's": "he is",
+    "how'd": "how did",
+    "how'll": "how will",
+    "how's": "how is",
+    "i'd": "i would",
+    "i'll": "i will",
+    "i'm": "i am",
+    "i've": "i have",
+    "isn't": "is not",
+    "it'd": "it would",
+    "it'll": "it will",
+    "it's": "it is",
+    "let's": "let us",
+    "ma'am": "madam",
+    "mayn't": "may not",
+    "might've": "might have",
+    "mightn't": "might not",
+    "must've": "must have",
+    "mustn't": "must not",
+    "needn't": "need not",
+    "oughtn't": "ought not",
+    "shan't": "shall not",
+    "sha'n't": "shall not",
+    "she'd": "she would",
+    "she'll": "she will",
+    "she's": "she is",
+    "should've": "should have",
+    "shouldn't": "should not",
+    "that'd": "that would",
+    "that's": "that is",
+    "there'd": "there had",
+    "there's": "there is",
+    "they'd": "they would",
+    "they'll": "they will",
+    "they're": "they are",
+    "they've": "they have",
+    "wasn't": "was not",
+    "we'd": "we would",
+    "we'll": "we will",
+    "we're": "we are",
+    "we've": "we have",
+    "weren't": "were not",
+    "what'll": "what will",
+    "what're": "what are",
+    "what's": "what is",
+    "what've": "what have",
+    "where'd": "where did",
+    "where's": "where is",
+    "who'll": "who will",
+    "who's": "who is",
+    "won't": "will not",
+    "wouldn't": "would not",
+    "you'd": "you would",
+    "you'll": "you will",
+    "you're": "you are"
 }
 
 
-def clean_text(text, remove_stopwords = True):
-    '''Remove unwanted characters, stopwords, and format the text to create fewer nulls word embeddings'''
-    
+def clean_text(text, remove_stopwords=True):
+    """Remove unwanted characters, stopwords, and format the t
+        ext to create fewer nulls word embeddings
+    """
+
     # Convert words to lower case
     text = text.lower()
-    
+
     # Replace contractions with their longer forms 
     if True:
         text = text.split()
@@ -121,15 +119,15 @@ def clean_text(text, remove_stopwords = True):
             else:
                 new_text.append(word)
         text = " ".join(new_text)
-    
+
     # Format words and remove unwanted characters
     text = re.sub(r'https?:\/\/.*[\r\n]*', '', text, flags=re.MULTILINE)
     text = re.sub(r'\<a href', ' ', text)
-    text = re.sub(r'&amp;', '', text) 
+    text = re.sub(r'&amp;', '', text)
     text = re.sub(r'[_"\-;%()|+&=*%.,!?:#$@\[\]/]', ' ', text)
     text = re.sub(r'<br />', ' ', text)
     text = re.sub(r'\'', ' ', text)
-    
+
     # Optionally, remove stop words
     if remove_stopwords:
         text = text.split()
@@ -141,19 +139,19 @@ def clean_text(text, remove_stopwords = True):
 
 
 # Clean the summaries and texts
-clean_summaries = []
-for summary in reviews.Summary:
-    clean_summaries.append(clean_text(summary, remove_stopwords=False))
+CLEAN_SUMMARIES = []
+for summary in REVIEWS.Summary:
+    CLEAN_SUMMARIES.append(CLEAN_SUMMARIES(summary, remove_stopwords=False))
 print("Summaries are complete.")
 
-clean_texts = []
-for text in reviews.Text:
-    clean_texts.append(clean_text(text))
+CLEAN_TEXTS = []
+for text in REVIEWS.Text:
+    CLEAN_TEXTS.append(CLEAN_TEXTS(text))
 print("Texts are complete.")
 
 
 def count_words(count_dict, text):
-    '''Count the number of occurrences of each word in a set of text'''
+    """Count the number of occurrences of each word in a set of text"""
     for sentence in text:
         for word in sentence.split():
             if word not in count_dict:
@@ -162,86 +160,81 @@ def count_words(count_dict, text):
                 count_dict[word] += 1
 
 
-word_counts = {}
+WORD_COUNTS = {}
 
-count_words(word_counts, clean_summaries)
-count_words(word_counts, clean_texts)
-            
-print("Size of Vocabulary:", len(word_counts))
+count_words(WORD_COUNTS, CLEAN_SUMMARIES)
+count_words(WORD_COUNTS, CLEAN_TEXTS)
 
+print("Size of Vocabulary:", len(WORD_COUNTS))
 
-embeddings_index = {}
+EMBEDDING_INDEX = {}
 with open('numberbatch-en-19.08.txt', encoding='utf-8') as f:
     for line in f:
         values = line.split(' ')
         word = values[0]
         embedding = np.asarray(values[1:], dtype='float32')
-        embeddings_index[word] = embedding
+        EMBEDDING_INDEX[word] = embedding
 
-print('Word embeddings:', len(embeddings_index))
+print('Word embeddings:', len(EMBEDDING_INDEX))
 
-
-missing_words = 0
+MISSING_WORDS = 0
 threshold = 20
 
-for word, count in word_counts.items():
+for word, count in WORD_COUNTS.items():
     if count > threshold:
-        if word not in embeddings_index:
-            missing_words += 1
-            
-missing_ratio = round(missing_words/len(word_counts),4)*100
-            
-print("Number of words missing from CN:", missing_words)
-print("Percent of words that are missing from vocabulary: {}%".format(missing_ratio))
+        if word not in EMBEDDING_INDEX:
+            MISSING_WORDS += 1
 
+MISSING_RATIO = round(MISSING_WORDS / len(WORD_COUNTS), 4) * 100
 
+print("Number of words missing from CN:", MISSING_WORDS)
+print("Percent of words that are missing from vocabulary: {}%".format(MISSING_RATIO))
 
 # Limit the vocab that we will use to words that appear ≥ threshold or are in GloVe
 
-#dictionary to convert words to integers
-vocab_to_int = {} 
+# dictionary to convert words to integers
+VOCAB_TO_INT = {}
 
 value = 0
-for word, count in word_counts.items():
-    if count >= threshold or word in embeddings_index:
-        vocab_to_int[word] = value
+for word, count in WORD_COUNTS.items():
+    if count >= threshold or word in EMBEDDING_INDEX:
+        VOCAB_TO_INT[word] = value
         value += 1
 
 # Special tokens that will be added to our vocab
-codes = ["<UNK>","<PAD>","<EOS>","<GO>"]   
+codes = ["<UNK>", "<PAD>", "<EOS>", "<GO>"]
 
 # Add codes to vocab
 for code in codes:
-    vocab_to_int[code] = len(vocab_to_int)
+    VOCAB_TO_INT[code] = len(VOCAB_TO_INT)
 
 # Dictionary to convert integers to words
 int_to_vocab = {}
-for word, value in vocab_to_int.items():
+for word, value in VOCAB_TO_INT.items():
     int_to_vocab[value] = word
 
-usage_ratio = round(len(vocab_to_int) / len(word_counts),4)*100
+usage_ratio = round(len(VOCAB_TO_INT) / len(WORD_COUNTS), 4) * 100
 
-print("Total number of unique words:", len(word_counts))
-print("Number of words we will use:", len(vocab_to_int))
+print("Total number of unique words:", len(WORD_COUNTS))
+print("Number of words we will use:", len(VOCAB_TO_INT))
 print("Percent of words we will use: {}%".format(usage_ratio))
-
 
 # Need to use 300 for embedding dimensions to match CN's vectors.
 embedding_dim = 300
-nb_words = len(vocab_to_int)
+nb_words = len(VOCAB_TO_INT)
 
 # Create matrix with default values of zero
 word_embedding_matrix = np.zeros((nb_words, embedding_dim), dtype=np.float32)
-for word, i in vocab_to_int.items():
-    if word in embeddings_index:
-        word_embedding_matrix[i] = embeddings_index[word]
+for word, i in VOCAB_TO_INT.items():
+    if word in EMBEDDING_INDEX:
+        word_embedding_matrix[i] = EMBEDDING_INDEX[word]
     else:
         # If word not in CN, create a random embedding for it
         new_embedding = np.array(np.random.uniform(-1.0, 1.0, embedding_dim))
-        embeddings_index[word] = new_embedding
+        EMBEDDING_INDEX[word] = new_embedding
         word_embedding_matrix[i] = new_embedding
 
-# Check if value matches len(vocab_to_int)
+# Check if value matches len(VOCAB_TO_INT)
 print(len(word_embedding_matrix))
 
 
@@ -255,13 +248,13 @@ def convert_to_ints(text, word_count, unk_count, eos=False):
         sentence_ints = []
         for word in sentence.split():
             word_count += 1
-            if word in vocab_to_int:
-                sentence_ints.append(vocab_to_int[word])
+            if word in VOCAB_TO_INT:
+                sentence_ints.append(VOCAB_TO_INT[word])
             else:
-                sentence_ints.append(vocab_to_int["<UNK>"])
+                sentence_ints.append(VOCAB_TO_INT["<UNK>"])
                 unk_count += 1
         if eos:
-            sentence_ints.append(vocab_to_int["<EOS>"])
+            sentence_ints.append(VOCAB_TO_INT["<EOS>"])
         ints.append(sentence_ints)
     return ints, word_count, unk_count
 
@@ -270,10 +263,10 @@ def convert_to_ints(text, word_count, unk_count, eos=False):
 word_count = 0
 unk_count = 0
 
-int_summaries, word_count, unk_count = convert_to_ints(clean_summaries, word_count, unk_count)
-int_texts, word_count, unk_count = convert_to_ints(clean_texts, word_count, unk_count, eos=True)
+int_summaries, word_count, unk_count = convert_to_ints(CLEAN_SUMMARIES, word_count, unk_count)
+int_texts, word_count, unk_count = convert_to_ints(CLEAN_TEXTS, word_count, unk_count, eos=True)
 
-unk_percent = round(unk_count/word_count,4)*100
+unk_percent = round(unk_count / word_count, 4) * 100
 
 print("Total number of words in headlines:", word_count)
 print("Total number of UNKs in headlines:", unk_count)
@@ -297,7 +290,6 @@ print()
 print("Texts:")
 print(lengths_texts.describe())
 
-
 # In[18]:
 
 
@@ -306,17 +298,16 @@ print(np.percentile(lengths_texts.counts, 90))
 print(np.percentile(lengths_texts.counts, 95))
 print(np.percentile(lengths_texts.counts, 99))
 
-
 # Inspect the length of summaries
 print(np.percentile(lengths_summaries.counts, 90))
 print(np.percentile(lengths_summaries.counts, 95))
 
 
 def unk_counter(sentence):
-    '''Counts the number of time UNK appears in a sentence.'''
+    """Counts the number of time UNK appears in a sentence."""
     unk_count = 0
     for word in sentence:
-        if word == vocab_to_int["<UNK>"]:
+        if word == VOCAB_TO_INT["<UNK>"]:
             unk_count += 1
     return unk_count
 
@@ -328,420 +319,422 @@ def unk_counter(sentence):
 sorted_summaries = []
 sorted_texts = []
 max_text_length = 84
-max_summary_length = 13
+MAX_SUMMARY_LENGTH = 13
 min_length = 2
 unk_text_limit = 1
 unk_summary_limit = 0
 
-for length in range(min(lengths_texts.counts), max_text_length): 
+for length in range(min(lengths_texts.counts), max_text_length):
     for count, words in enumerate(int_summaries):
-        if (len(int_summaries[count]) >= min_length and
-            len(int_summaries[count]) <= max_summary_length and
-            len(int_texts[count]) >= min_length and
-            unk_counter(int_summaries[count]) <= unk_summary_limit and
-            unk_counter(int_texts[count]) <= unk_text_limit and
-            length == len(int_texts[count])
-           ):
+        if (min_length <= len(int_summaries[count]) <= MAX_SUMMARY_LENGTH and
+                len(int_texts[count]) >= min_length and
+                unk_counter(int_summaries[count]) <= unk_summary_limit and
+                unk_counter(int_texts[count]) <= unk_text_limit and
+                length == len(int_texts[count])):
             sorted_summaries.append(int_summaries[count])
             sorted_texts.append(int_texts[count])
-        
+
 # Compare lengths to ensure they match
 print(len(sorted_summaries))
 print(len(sorted_texts))
 
 
 def model_inputs():
-    '''Create palceholders for inputs to the model'''
-    
-    input_data = tf.placeholder(tf.int32, [None, None], name='input')
-    targets = tf.placeholder(tf.int32, [None, None], name='targets')
-    lr = tf.placeholder(tf.float32, name='learning_rate')
-    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
-    summary_length = tf.placeholder(tf.int32, (None,), name='summary_length')
-    max_summary_length = tf.reduce_max(summary_length, name='max_dec_len')
-    text_length = tf.placeholder(tf.int32, (None,), name='text_length')
+    """Create palceholders for inputs to the model"""
 
-    return input_data, targets, lr, keep_prob, summary_length, max_summary_length, text_length
+    INPUT_DATA = tf.placeholder(tf.int32, [None, None], name='input')
+    TARGETS = tf.placeholder(tf.int32, [None, None], name='TARGETS')
+    LR = tf.placeholder(tf.float32, name='LEARNING_RATE')
+    KEEP_PROB = tf.placeholder(tf.float32, name='KEEP_PROB')
+    SUMMARY_LENGTH = tf.placeholder(tf.int32, (None,), name='SUMMARY_LENGTH')
+    MAX_SUMMARY_LENGTH = tf.reduce_max(SUMMARY_LENGTH, name='max_dec_len')
+    TEXT_LENGTH = tf.placeholder(tf.int32, (None,), name='TEXT_LENGTH')
+
+    return INPUT_DATA, TARGETS, LR, KEEP_PROB, SUMMARY_LENGTH, MAX_SUMMARY_LENGTH, TEXT_LENGTH
 
 
-def process_encoding_input(target_data, vocab_to_int, batch_size):
-    '''Remove the last word id from each batch and concat the <GO> to the begining of each batch'''
-    
-    ending = tf.strided_slice(target_data, [0, 0], [batch_size, -1], [1, 1])
-    dec_input = tf.concat([tf.fill([batch_size, 1], vocab_to_int['<GO>']), ending], 1)
+def process_encoding_input(target_data, VOCAB_TO_INT, BATCH_SIZE):
+    """Remove the last word id from each batch and concat the <GO> to the begining of each batch"""
+
+    ending = tf.strided_slice(target_data, [0, 0], [BATCH_SIZE, -1], [1, 1])
+    dec_input = tf.concat([tf.fill([BATCH_SIZE, 1], VOCAB_TO_INT['<GO>']), ending], 1)
 
     return dec_input
 
 
-def encoding_layer(rnn_size, sequence_length, num_layers, rnn_inputs, keep_prob):
-    '''Create the encoding layer'''
-    
-    for layer in range(num_layers):
+def encoding_layer(RNN_SIZE, sequence_length, NUM_LAYERS, rnn_inputs, KEEP_PROB):
+    """Create the encoding layer"""
+
+    for layer in range(NUM_LAYERS):
         with tf.variable_scope('encoder_{}'.format(layer)):
-            cell_fw = tf.contrib.rnn.LSTMCell(rnn_size,
-                                              initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
-            cell_fw = tf.contrib.rnn.DropoutWrapper(cell_fw, 
-                                                    input_keep_prob = keep_prob)
+            cell_fw = tf.contrib.rnn.LSTMCell(RNN_SIZE,
+                                              initializer=tf.random_uniform_initializer(
+                                                  -0.1, 0.1, seed=2))
+            cell_fw = tf.contrib.rnn.DropoutWrapper(cell_fw,
+                                                    input_keep_prob=KEEP_PROB)
 
-            cell_bw = tf.contrib.rnn.LSTMCell(rnn_size,
-                                              initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
-            cell_bw = tf.contrib.rnn.DropoutWrapper(cell_bw, 
-                                                    input_keep_prob = keep_prob)
+            cell_bw = tf.contrib.rnn.LSTMCell(RNN_SIZE,
+                                              initializer=tf.random_uniform_initializer(
+                                                  -0.1, 0.1, seed=2))
+            cell_bw = tf.contrib.rnn.DropoutWrapper(cell_bw,
+                                                    input_keep_prob=KEEP_PROB)
 
-            enc_output, enc_state = tf.nn.bidirectional_dynamic_rnn(cell_fw, 
-                                                                    cell_bw, 
+            enc_output, enc_state = tf.nn.bidirectional_dynamic_rnn(cell_fw,
+                                                                    cell_bw,
                                                                     rnn_inputs,
                                                                     sequence_length,
                                                                     dtype=tf.float32)
     # Join outputs since we are using a bidirectional RNN
-    enc_output = tf.concat(enc_output,2)
-    
+    enc_output = tf.concat(enc_output, 2)
+
     return enc_output, enc_state
 
 
-def training_decoding_layer(dec_embed_input, summary_length, dec_cell, initial_state, output_layer, 
-                            vocab_size, max_summary_length):
-    '''Create the training logits'''
-    
+def training_decoding_layer(dec_embed_input, SUMMARY_LENGTH, dec_cell, initial_state, output_layer,
+                            vocab_size, MAX_SUMMARY_LENGTH):
+    """Create the training logits"""
+
     training_helper = tf.contrib.seq2seq.TrainingHelper(inputs=dec_embed_input,
-                                                        sequence_length=summary_length,
+                                                        sequence_length=SUMMARY_LENGTH,
                                                         time_major=False)
 
     training_decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell,
                                                        training_helper,
                                                        initial_state,
-                                                       output_layer) 
+                                                       output_layer)
 
-    training_logits, _ = tf.contrib.seq2seq.dynamic_decode(training_decoder,
+    TRAINING_LOGITS, _ = tf.contrib.seq2seq.dynamic_decode(training_decoder,
                                                            output_time_major=False,
                                                            impute_finished=True,
-                                                           maximum_iterations=max_summary_length)
-    return training_logits
+                                                           maximum_iterations=MAX_SUMMARY_LENGTH)
+    return TRAINING_LOGITS
 
 
+def inference_decoding_layer(embeddings, start_token, end_token,
+                             dec_cell, initial_state, output_layer,
+                             MAX_SUMMARY_LENGTH, BATCH_SIZE):
+    """Create the inference logits"""
 
-def inference_decoding_layer(embeddings, start_token, end_token, dec_cell, initial_state, output_layer,
-                             max_summary_length, batch_size):
-    '''Create the inference logits'''
-    
-    start_tokens = tf.tile(tf.constant([start_token], dtype=tf.int32), [batch_size], name='start_tokens')
-    
+    start_tokens = tf.tile(tf.constant([start_token], dtype=tf.int32),
+                           [BATCH_SIZE], name='start_tokens')
+
     inference_helper = tf.contrib.seq2seq.GreedyEmbeddingHelper(embeddings,
                                                                 start_tokens,
                                                                 end_token)
-                
+
     inference_decoder = tf.contrib.seq2seq.BasicDecoder(dec_cell,
                                                         inference_helper,
                                                         initial_state,
                                                         output_layer)
-                
-    inference_logits, _ = tf.contrib.seq2seq.dynamic_decode(inference_decoder,
+
+    INFERENCE_LOGITS, _ = tf.contrib.seq2seq.dynamic_decode(inference_decoder,
                                                             output_time_major=False,
                                                             impute_finished=True,
-                                                            maximum_iterations=max_summary_length)
-    
-    return inference_logits
+                                                            maximum_iterations=MAX_SUMMARY_LENGTH)
+
+    return INFERENCE_LOGITS
 
 
+def decoding_layer(dec_embed_input, embeddings, enc_output,
+                   enc_state, vocab_size, TEXT_LENGTH,
+                   SUMMARY_LENGTH,
+                   MAX_SUMMARY_LENGTH, RNN_SIZE, VOCAB_TO_INT,
+                   KEEP_PROB, BATCH_SIZE, NUM_LAYERS):
+    """Create the decoding cell and attention for the training and inference decoding layers"""
 
-def decoding_layer(dec_embed_input, embeddings, enc_output, enc_state, vocab_size, text_length, summary_length, 
-                   max_summary_length, rnn_size, vocab_to_int, keep_prob, batch_size, num_layers):
-    '''Create the decoding cell and attention for the training and inference decoding layers'''
-    
-    for layer in range(num_layers):
+    for layer in range(NUM_LAYERS):
         with tf.variable_scope('decoder_{}'.format(layer)):
-            lstm = tf.contrib.rnn.LSTMCell(rnn_size,
-                                           initializer=tf.random_uniform_initializer(-0.1, 0.1, seed=2))
-            dec_cell = tf.contrib.rnn.DropoutWrapper(lstm, 
-                                                     input_keep_prob = keep_prob)
-    
+            lstm = tf.contrib.rnn.LSTMCell(RNN_SIZE,
+                                           initializer=tf.random_uniform_initializer(
+                                               -0.1, 0.1, seed=2))
+            dec_cell = tf.contrib.rnn.DropoutWrapper(lstm,
+                                                     input_keep_prob=KEEP_PROB)
+
     output_layer = Dense(vocab_size,
-                         kernel_initializer = tf.truncated_normal_initializer(mean = 0.0, stddev=0.1))
-    
-    attn_mech = tf.contrib.seq2seq.BahdanauAttention(rnn_size,
-                                                  enc_output,
-                                                  text_length,
-                                                  normalize=False,
-                                                  name='BahdanauAttention')
+                         kernel_initializer=tf.truncated_normal_initializer(mean=0.0, stddev=0.1))
+
+    attn_mech = tf.contrib.seq2seq.BahdanauAttention(RNN_SIZE,
+                                                     enc_output,
+                                                     TEXT_LENGTH,
+                                                     normalize=False,
+                                                     name='BahdanauAttention')
 
     dec_cell = tf.contrib.seq2seq.DynamicAttentionWrapper(dec_cell,
                                                           attn_mech,
-                                                          rnn_size)
-            
+                                                          RNN_SIZE)
+
     initial_state = tf.contrib.seq2seq.DynamicAttentionWrapperState(enc_state[0],
-                                                                    _zero_state_tensors(rnn_size, 
-                                                                                        batch_size, 
-                                                                                        tf.float32)) 
+                                                                    _zero_state_tensors(RNN_SIZE,
+                                                                                        BATCH_SIZE,
+                                                                                        tf.float32))
     with tf.variable_scope("decode"):
-        training_logits = training_decoding_layer(dec_embed_input, 
-                                                  summary_length, 
-                                                  dec_cell, 
+        TRAINING_LOGITS = training_decoding_layer(dec_embed_input,
+                                                  SUMMARY_LENGTH,
+                                                  dec_cell,
                                                   initial_state,
                                                   output_layer,
-                                                  vocab_size, 
-                                                  max_summary_length)
+                                                  vocab_size,
+                                                  MAX_SUMMARY_LENGTH)
     with tf.variable_scope("decode", reuse=True):
-        inference_logits = inference_decoding_layer(embeddings,  
-                                                    vocab_to_int['<GO>'], 
-                                                    vocab_to_int['<EOS>'],
-                                                    dec_cell, 
-                                                    initial_state, 
+        INFERENCE_LOGITS = inference_decoding_layer(embeddings,
+                                                    VOCAB_TO_INT['<GO>'],
+                                                    VOCAB_TO_INT['<EOS>'],
+                                                    dec_cell,
+                                                    initial_state,
                                                     output_layer,
-                                                    max_summary_length,
-                                                    batch_size)
+                                                    MAX_SUMMARY_LENGTH,
+                                                    BATCH_SIZE)
 
-    return training_logits, inference_logits
+    return TRAINING_LOGITS, INFERENCE_LOGITS
 
 
+def seq2seq_model(INPUT_DATA, target_data, KEEP_PROB,
+                  TEXT_LENGTH, SUMMARY_LENGTH, MAX_SUMMARY_LENGTH,
+                  vocab_size, RNN_SIZE, NUM_LAYERS,
+                  VOCAB_TO_INT, BATCH_SIZE):
+    """Use the previous functions to create the training and inference logits"""
 
-def seq2seq_model(input_data, target_data, keep_prob, text_length, summary_length, max_summary_length, 
-                  vocab_size, rnn_size, num_layers, vocab_to_int, batch_size):
-    '''Use the previous functions to create the training and inference logits'''
-    
     # Use Numberbatch's embeddings and the newly created ones as our embeddings
     embeddings = word_embedding_matrix
-    
-    enc_embed_input = tf.nn.embedding_lookup(embeddings, input_data)
-    enc_output, enc_state = encoding_layer(rnn_size, text_length, num_layers, enc_embed_input, keep_prob)
-    
-    dec_input = process_encoding_input(target_data, vocab_to_int, batch_size)
-    dec_embed_input = tf.nn.embedding_lookup(embeddings, dec_input)
-    
-    training_logits, inference_logits  = decoding_layer(dec_embed_input, 
-                                                        embeddings,
-                                                        enc_output,
-                                                        enc_state, 
-                                                        vocab_size, 
-                                                        text_length, 
-                                                        summary_length, 
-                                                        max_summary_length,
-                                                        rnn_size, 
-                                                        vocab_to_int, 
-                                                        keep_prob, 
-                                                        batch_size,
-                                                        num_layers)
-    
-    return training_logits, inference_logits
 
+    enc_embed_input = tf.nn.embedding_lookup(embeddings, INPUT_DATA)
+    enc_output, enc_state = encoding_layer(RNN_SIZE,
+                                           TEXT_LENGTH, NUM_LAYERS,
+                                           enc_embed_input, KEEP_PROB)
+
+    dec_input = process_encoding_input(target_data, VOCAB_TO_INT, BATCH_SIZE)
+    dec_embed_input = tf.nn.embedding_lookup(embeddings, dec_input)
+
+    TRAINING_LOGITS, INFERENCE_LOGITS = decoding_layer(dec_embed_input,
+                                                       embeddings,
+                                                       enc_output,
+                                                       enc_state,
+                                                       vocab_size,
+                                                       TEXT_LENGTH,
+                                                       SUMMARY_LENGTH,
+                                                       MAX_SUMMARY_LENGTH,
+                                                       RNN_SIZE,
+                                                       VOCAB_TO_INT,
+                                                       KEEP_PROB,
+                                                       BATCH_SIZE,
+                                                       NUM_LAYERS)
+
+    return TRAINING_LOGITS, INFERENCE_LOGITS
 
 
 def pad_sentence_batch(sentence_batch):
     """Pad sentences with <PAD> so that each sentence of a batch has the same length"""
     max_sentence = max([len(sentence) for sentence in sentence_batch])
-    return [sentence + [vocab_to_int['<PAD>']] * (max_sentence - len(sentence)) for sentence in sentence_batch]
+    return [sentence + [VOCAB_TO_INT['<PAD>']] * (max_sentence - len(sentence))
+            for sentence in sentence_batch]
 
 
-
-def get_batches(summaries, texts, batch_size):
+def get_batches(summaries, texts, BATCH_SIZE):
     """Batch summaries, texts, and the lengths of their sentences together"""
-    for batch_i in range(0, len(texts)//batch_size):
-        start_i = batch_i * batch_size
-        summaries_batch = summaries[start_i:start_i + batch_size]
-        texts_batch = texts[start_i:start_i + batch_size]
+    for batch_i in range(0, len(texts) // BATCH_SIZE):
+        start_i = batch_i * BATCH_SIZE
+        summaries_batch = summaries[start_i:start_i + BATCH_SIZE]
+        texts_batch = texts[start_i:start_i + BATCH_SIZE]
         pad_summaries_batch = np.array(pad_sentence_batch(summaries_batch))
         pad_texts_batch = np.array(pad_sentence_batch(texts_batch))
-        
+
         # Need the lengths for the _lengths parameters
         pad_summaries_lengths = []
         for summary in pad_summaries_batch:
             pad_summaries_lengths.append(len(summary))
-        
+
         pad_texts_lengths = []
         for text in pad_texts_batch:
             pad_texts_lengths.append(len(text))
-        
+
         yield pad_summaries_batch, pad_texts_batch, pad_summaries_lengths, pad_texts_lengths
 
 
-
 # Set the Hyperparameters
-epochs = 5
-batch_size = 64
-rnn_size = 256
-num_layers = 2
-learning_rate = 0.005
-keep_probability = 0.75
-
+EPOCHS = 5
+BATCH_SIZE = 64
+RNN_SIZE = 256
+NUM_LAYERS = 2
+LEARNING_RATE = 0.005
+KEEP_PROBABILITY = 0.75
 
 # Build the graph
-train_graph = tf.Graph()
+TRAIN_GRAPH = tf.Graph()
 # Set the graph to default to ensure that it is ready for training
-with train_graph.as_default():
-    
-    # Load the model inputs    
-    input_data, targets, lr, keep_prob, summary_length, max_summary_length, text_length = model_inputs()
+with TRAIN_GRAPH.as_default():
+    # Load the model inputs
+    INPUT_DATA, TARGETS, LR, KEEP_PROB, SUMMARY_LENGTH, \
+    MAX_SUMMARY_LENGTH, TEXT_LENGTH = model_inputs()
 
     # Create the training and inference logits
-    training_logits, inference_logits = seq2seq_model(tf.reverse(input_data, [-1]),
-                                                      targets, 
-                                                      keep_prob,   
-                                                      text_length,
-                                                      summary_length,
-                                                      max_summary_length,
-                                                      len(vocab_to_int)+1,
-                                                      rnn_size, 
-                                                      num_layers, 
-                                                      vocab_to_int,
-                                                      batch_size)
-    
+    TRAINING_LOGITS, INFERENCE_LOGITS = seq2seq_model(tf.reverse(INPUT_DATA, [-1]),
+                                                      TARGETS,
+                                                      KEEP_PROB,
+                                                      TEXT_LENGTH,
+                                                      SUMMARY_LENGTH,
+                                                      MAX_SUMMARY_LENGTH,
+                                                      len(VOCAB_TO_INT) + 1,
+                                                      RNN_SIZE,
+                                                      NUM_LAYERS,
+                                                      VOCAB_TO_INT,
+                                                      BATCH_SIZE)
+
     # Create tensors for the training logits and inference logits
-    training_logits = tf.identity(training_logits.rnn_output, 'logits')
-    inference_logits = tf.identity(inference_logits.sample_id, name='predictions')
-    
+    TRAINING_LOGITS = tf.identity(TRAINING_LOGITS.rnn_output, 'logits')
+    INFERENCE_LOGITS = tf.identity(INFERENCE_LOGITS.sample_id, name='predictions')
+
     # Create the weights for sequence_loss
-    masks = tf.sequence_mask(summary_length, max_summary_length, dtype=tf.float32, name='masks')
+    MASKS = tf.sequence_mask(SUMMARY_LENGTH, MAX_SUMMARY_LENGTH, dtype=tf.float32, name='MASKS')
 
     with tf.name_scope("optimization"):
         # Loss function
-        cost = tf.contrib.seq2seq.sequence_loss(
-            training_logits,
-            targets,
-            masks)
+        COST = tf.contrib.seq2seq.sequence_loss(
+            TRAINING_LOGITS,
+            TARGETS,
+            MASKS)
 
-        # Optimizer
-        optimizer = tf.train.AdamOptimizer(learning_rate)
+        # OPTIMIZER
+        OPTIMIZER = tf.train.AdamOptimizer(LEARNING_RATE)
 
         # Gradient Clipping
-        gradients = optimizer.compute_gradients(cost)
-        capped_gradients = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in gradients if grad is not None]
-        train_op = optimizer.apply_gradients(capped_gradients)
+        GRADIENTS = OPTIMIZER.compute_gradients(COST)
+        CAPPED_GRADIENTS = [(tf.clip_by_value(grad, -5., 5.),
+                             var)
+                            for grad, var in GRADIENTS if grad is not None]
+        TRAIN_OP = OPTIMIZER.apply_gradients(CAPPED_GRADIENTS)
 print("Graph is built.")
 
-
 # Subset the data for training
-start = 400000
-end = start + 50000
-sorted_summaries_short = sorted_summaries[start:end]
-sorted_texts_short = sorted_texts[start:end]
-print("The shortest text length:", len(sorted_texts_short[0]))
-print("The longest text length:",len(sorted_texts_short[-1]))
-
+START = 400000
+END = START + 50000
+SORTED_SUMMARIES_SHORT = sorted_summaries[START:END]
+SORTED_TEXTS_SHORT = sorted_texts[START:END]
+print("The shortest text length:", len(SORTED_TEXTS_SHORT[0]))
+print("The longest text length:", len(SORTED_TEXTS_SHORT[-1]))
 
 # Train the Model
-learning_rate_decay = 0.95
-min_learning_rate = 0.0005
-display_step = 20 # Check training loss after every 20 batches
-stop_early = 0 
-stop = 3 # If the update loss does not decrease in 3 consecutive update checks, stop training
-per_epoch = 3 # Make 3 update checks per epoch
-update_check = (len(sorted_texts_short)//batch_size//per_epoch)-1
+LEARNING_RATE_DECAY = 0.95
+MIN_LEARNING_RATE = 0.0005
+DISPLAY_STEP = 20  # Check training loss after every 20 batches
+STOP_EARLY = 0
+STOP = 3  # If the update loss does not decrease in 3 consecutive update checks, stop training
+PER_EPOCH = 3  # Make 3 update checks per epoch
+UPDATE_CHECK = (len(SORTED_TEXTS_SHORT) // BATCH_SIZE // PER_EPOCH) - 1
 
-update_loss = 0 
-batch_loss = 0
-summary_update_loss = [] # Record the update losses for saving improvements in the model
+UPDATE_LOSS = 0
+BATCH_LOSS = 0
+SUMMARY_UPDATE_LOSS = []  # Record the update losses for saving improvements in the model
 
-checkpoint = "best_model.ckpt" 
-with tf.Session(graph=train_graph) as sess:
+CHECKPOINT = "best_model.ckpt"
+with tf.Session(graph=TRAIN_GRAPH) as sess:
     sess.run(tf.global_variables_initializer())
-    
+
     # If we want to continue training a previous session
-    #loader = tf.train.import_meta_graph("./" + checkpoint + '.meta')
-    #loader.restore(sess, checkpoint)
-    
-    for epoch_i in range(1, epochs+1):
-        update_loss = 0
-        batch_loss = 0
+    # loader = tf.train.import_meta_graph("./" + checkpoint + '.meta')
+    # loader.restore(sess, checkpoint)
+
+    for epoch_i in range(1, EPOCHS + 1):
+        UPDATE_LOSS = 0
+        BATCH_LOSS = 0
         for batch_i, (summaries_batch, texts_batch, summaries_lengths, texts_lengths) in enumerate(
-                get_batches(sorted_summaries_short, sorted_texts_short, batch_size)):
+                get_batches(SORTED_SUMMARIES_SHORT, SORTED_TEXTS_SHORT, BATCH_SIZE)):
             start_time = time.time()
             _, loss = sess.run(
-                [train_op, cost],
-                {input_data: texts_batch,
-                 targets: summaries_batch,
-                 lr: learning_rate,
-                 summary_length: summaries_lengths,
-                 text_length: texts_lengths,
-                 keep_prob: keep_probability})
+                [TRAIN_OP, COST],
+                {INPUT_DATA: texts_batch,
+                 TARGETS: summaries_batch,
+                 LR: LEARNING_RATE,
+                 SUMMARY_LENGTH: summaries_lengths,
+                 TEXT_LENGTH: texts_lengths,
+                 KEEP_PROB: KEEP_PROBABILITY})
 
-            batch_loss += loss
-            update_loss += loss
+            BATCH_LOSS += loss
+            UPDATE_LOSS += loss
             end_time = time.time()
             batch_time = end_time - start_time
 
-            if batch_i % display_step == 0 and batch_i > 0:
+            if batch_i % DISPLAY_STEP == 0 and batch_i > 0:
                 print('Epoch {:>3}/{} Batch {:>4}/{} - Loss: {:>6.3f}, Seconds: {:>4.2f}'
                       .format(epoch_i,
-                              epochs, 
-                              batch_i, 
-                              len(sorted_texts_short) // batch_size, 
-                              batch_loss / display_step, 
-                              batch_time*display_step))
-                batch_loss = 0
+                              EPOCHS,
+                              batch_i,
+                              len(SORTED_TEXTS_SHORT) // BATCH_SIZE,
+                              BATCH_LOSS / DISPLAY_STEP,
+                              batch_time * DISPLAY_STEP))
+                BATCH_LOSS = 0
 
-            if batch_i % update_check == 0 and batch_i > 0:
-                print("Average loss for this update:", round(update_loss/update_check,3))
-                summary_update_loss.append(update_loss)
-                
+            if batch_i % UPDATE_CHECK == 0 and batch_i > 0:
+                print("Average loss for this update:", round(UPDATE_LOSS / UPDATE_CHECK, 3))
+                SUMMARY_UPDATE_LOSS.append(UPDATE_LOSS)
+
                 # If the update loss is at a new minimum, save the model
-                if update_loss <= min(summary_update_loss):
-                    print('New Record!') 
-                    stop_early = 0
-                    saver = tf.train.Saver() 
-                    saver.save(sess, checkpoint)
+                if UPDATE_LOSS <= min(SUMMARY_UPDATE_LOSS):
+                    print('New Record!')
+                    STOP_EARLY = 0
+                    saver = tf.train.Saver()
+                    saver.save(sess, CHECKPOINT)
 
                 else:
                     print("No Improvement.")
-                    stop_early += 1
-                    if stop_early == stop:
+                    STOP_EARLY += 1
+                    if STOP_EARLY == STOP:
                         break
-                update_loss = 0
-            
-                    
+                UPDATE_LOSS = 0
+
         # Reduce learning rate, but not below its minimum value
-        learning_rate *= learning_rate_decay
-        if learning_rate < min_learning_rate:
-            learning_rate = min_learning_rate
-        
-        if stop_early == stop:
-            print("Stopping Training.")
+        LEARNING_RATE *= LEARNING_RATE_DECAY
+        if LEARNING_RATE < MIN_LEARNING_RATE:
+            LEARNING_RATE = MIN_LEARNING_RATE
+
+        if STOP_EARLY == STOP:
+            print("STOPping Training.")
             break
 
 
 def text_to_seq(text):
     '''Prepare the text for the model'''
-    
+
     text = clean_text(text)
-    return [vocab_to_int.get(word, vocab_to_int['<UNK>']) for word in text.split()]
+    return [VOCAB_TO_INT.get(word, VOCAB_TO_INT['<UNK>']) for word in text.split()]
 
 
 # Create your own review or use one from the dataset
-#input_sentence = "I have never eaten an apple before, but this red one was nice. \
-                  #I think that I will try a green apple next time."
-#text = text_to_seq(input_sentence)
-random = np.random.randint(0,len(clean_texts))
-input_sentence = clean_texts[random]
-text = text_to_seq(clean_texts[random])
+# input_sentence = "I have never eaten an apple before, but this red one was nice. \
+# I think that I will try a green apple next time."
+# text = text_to_seq(input_sentence)
+RANDOM = np.random.randint(0, len(CLEAN_TEXTS))
+INPUT_SENTENCE = CLEAN_TEXTS[RANDOM]
+TEXT = text_to_seq(CLEAN_TEXTS[RANDOM])
 
-checkpoint = "./best_model.ckpt"
+CHECKPOINT = "./best_model.ckpt"
 
-loaded_graph = tf.Graph()
-with tf.Session(graph=loaded_graph) as sess:
+LOADED_GRAPH = tf.Graph()
+with tf.Session(graph=LOADED_GRAPH) as sess:
     # Load saved model
-    loader = tf.train.import_meta_graph(checkpoint + '.meta')
-    loader.restore(sess, checkpoint)
+    LOADER = tf.train.import_meta_graph(CHECKPOINT + '.meta')
+    LOADER.restore(sess, CHECKPOINT)
 
-    input_data = loaded_graph.get_tensor_by_name('input:0')
-    logits = loaded_graph.get_tensor_by_name('predictions:0')
-    text_length = loaded_graph.get_tensor_by_name('text_length:0')
-    summary_length = loaded_graph.get_tensor_by_name('summary_length:0')
-    keep_prob = loaded_graph.get_tensor_by_name('keep_prob:0')
-    
-    #Multiply by batch_size to match the model's input parameters
-    answer_logits = sess.run(logits, {input_data: [text]*batch_size, 
-                                      summary_length: [np.random.randint(5,8)], 
-                                      text_length: [len(text)]*batch_size,
-                                      keep_prob: 1.0})[0] 
+    INPUT_DATA = LOADED_GRAPH.get_tensor_by_name('input:0')
+    logits = LOADED_GRAPH.get_tensor_by_name('predictions:0')
+    TEXT_LENGTH = LOADED_GRAPH.get_tensor_by_name('TEXT_LENGTH:0')
+    SUMMARY_LENGTH = LOADED_GRAPH.get_tensor_by_name('SUMMARY_LENGTH:0')
+    KEEP_PROB = LOADED_GRAPH.get_tensor_by_name('KEEP_PROB:0')
 
-# Remove the padding from the tweet
-pad = vocab_to_int["<PAD>"] 
+    # Multiply by batch_size to match the model's input parameters
+    ANSWER_LOGITS = sess.run(logits, {INPUT_DATA: [TEXT] * BATCH_SIZE,
+                                      SUMMARY_LENGTH: [np.random.randint(5, 8)],
+                                      TEXT_LENGTH: [len(TEXT)] * BATCH_SIZE,
+                                      KEEP_PROB: 1.0})[0]
 
-print('Original Text:', input_sentence)
+# Remove the PADding from the tweet
+PAD = VOCAB_TO_INT["<PAD>"]
+
+print('Original Text:', INPUT_SENTENCE)
 
 print('\nText')
-print('  Word Ids:    {}'.format([i for i in text]))
+print('  Word Ids:    {}'.format([i for i in TEXT]))
 print('  Input Words: {}'.format(" ".join([int_to_vocab[i] for i in text])))
 
 print('\nSummary')
-print('  Word Ids:       {}'.format([i for i in answer_logits if i != pad]))
-print('  Response Words: {}'.format(" ".join([int_to_vocab[i] for i in answer_logits if i != pad])))
-
+print('  Word Ids:       {}'.format([i for i in ANSWER_LOGITS if i != PAD]))
+print('  Response Words: {}'.format(" ".join([int_to_vocab[i] for i in ANSWER_LOGITS if i != PAD])))
