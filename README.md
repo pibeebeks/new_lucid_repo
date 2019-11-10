@@ -31,6 +31,6 @@ https://lucid-ml.ml/ and https://lucidfeeds.herokuapp.com
 The first url is a web app for the user recommender system and page summarizer. The second url is for interesting
 feeds monitor.
 
-The API Documentations can be seen in the folders of the systems built. The interesting feeds api documentation
-can be accessed from the web app of the interesting feeds at https://lucidfeeds.herokuapp.com
+The API Documentations can be seen in the folders of the systems built. 
+The interesting feeds api documentationcan be accessed from the web app of the interesting feeds at https://lucidfeeds.herokuapp.com
 
