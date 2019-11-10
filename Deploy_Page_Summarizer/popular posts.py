@@ -3,14 +3,12 @@
 """
 Created on Wed Oct 30 23:03:21 2019
 
-@author: lumi and geewynn
+@author: lumi
 """
 #%%
 #import the needed modules
 
 import pandas as pd
-import joblib
-
 def popular_posts(notifications):
     #reading the csv file notifications.csv
     notif = pd.read_csv(notifications)
@@ -30,14 +28,9 @@ def popular_posts(notifications):
     counts_in_ratings =  pd.DataFrame(notif.groupby(['post_id'])['ratings'].count())
     # Arrange the output in descending order and viewing head to get the top 10 most popular posts
     return counts_in_ratings.sort_values('ratings', ascending=False)
-
-
+    
 popular_posts('notifications_new.csv')
 
 
 filename = 'model.sav'
 joblib.dump(popular_posts('notifications_new.csv'), filename)
-
-    
-
-
